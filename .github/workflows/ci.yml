@@ -27,6 +27,7 @@ jobs:
       - name: Lint
         run: swiftlint .
       - name: Run Tests
+        if: success() || failure()
         run: swift test --enable-code-coverage
       - name: Swift Coverage Report
         uses: maxep/spm-lcov-action@0.3.1

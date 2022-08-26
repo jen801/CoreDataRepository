@@ -47,8 +47,8 @@ final class FetchRepositoryTests: CoreDataXCTestCase {
         let result: Result<[Movie], CoreDataRepositoryError> = try await repository().fetch(fetchRequest)
         switch result {
         case let .success(movies):
-            XCTAssert(movies.count == 5, "Result items count should match expectation")
-            XCTAssert(movies == self.expectedMovies, "Result items should match expectations")
+            XCTAssertEqual(movies.count, 5, "Result items count should match expectation")
+            XCTAssertEqual(movies, self.expectedMovies, "Result items should match expectations")
         case .failure:
             XCTFail("Not expecting failure")
         }
@@ -72,12 +72,12 @@ final class FetchRepositoryTests: CoreDataXCTestCase {
                 resultCount += 1
                 switch resultCount {
                 case 1:
-                    XCTAssert(items.count == 5, "Result items count should match expectation")
-                    XCTAssert(items == self.expectedMovies, "Result items should match expectations")
+                    XCTAssertEqual(items.count, 5, "Result items count should match expectation")
+                    XCTAssertEqual(items, self.expectedMovies, "Result items should match expectations")
                     firstExp.fulfill()
                 case 2:
-                    XCTAssert(items.count == 4, "Result items count should match expectation")
-                    XCTAssert(items == Array(self.expectedMovies[0 ... 3]), "Result items should match expectations")
+                    XCTAssertEqual(items.count, 4, "Result items count should match expectation")
+                    XCTAssertEqual(items, Array(self.expectedMovies[0 ... 3]), "Result items should match expectations")
                     secondExp.fulfill()
                 default:
                     XCTFail("Not expecting any values past the first two.")

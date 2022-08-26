@@ -172,7 +172,7 @@ final class CRUDRepositoryTests: CoreDataXCTestCase {
         }
     }
 
-    func _testReadSubscriptionSuccess() async throws {
+    func testReadSubscriptionSuccess() async throws {
         var movie = Movie(id: UUID(), title: "Read Success", releaseDate: Date(), boxOffice: 100)
         
         
@@ -214,10 +214,10 @@ final class CRUDRepositoryTests: CoreDataXCTestCase {
                 resultCount += 1
                 switch resultCount {
                 case 1:
-                    XCTAssert(receiveMovie == movie, "Success response should match local object.")
+                    XCTAssertEqual(receiveMovie, movie, "Success response should match local object.")
                     firstExp.fulfill()
                 case 2:
-                    XCTAssert(receiveMovie == editedMovie, "Second success response should match local object.")
+                    XCTAssertEqual(receiveMovie, editedMovie, "Second success response should match local object.")
                     secondExp.fulfill()
                 default:
                     XCTFail("Not expecting any values past the first two.")
@@ -228,9 +228,9 @@ final class CRUDRepositoryTests: CoreDataXCTestCase {
         wait(for: [firstExp], timeout: 5)
         try repositoryContext().performAndWait { [self] in
             let coordinator = try XCTUnwrap(try self.repositoryContext().persistentStoreCoordinator)
-            coordinator.managedObjectID(forURIRepresentation: try XCTUnwrap(movie.url))
-            let managedMovie = movie.asRepoManaged(in: try self.repositoryContext())
-            managedMovie.update(from: editedMovie)
+            let objectId = try XCTUnwrap(coordinator.managedObjectID(forURIRepresentation: try XCTUnwrap(movie.url)))
+            let object = try XCTUnwrap(try repositoryContext().existingObject(with: objectId) as? RepoMovie)
+            object.update(from: editedMovie)
             try self.repositoryContext().save()
         }
         wait(for: [secondExp], timeout: 5)

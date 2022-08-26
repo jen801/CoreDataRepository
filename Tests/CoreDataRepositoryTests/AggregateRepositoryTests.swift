@@ -46,7 +46,7 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
         switch result {
         case let .success(values):
             let firstValue = try XCTUnwrap(values.first?.values.first)
-            XCTAssert(firstValue == 5, "Result value (count) should equal number of movies.")
+            XCTAssertEqual(firstValue, 5, "Result value (count) should equal number of movies.")
         case .failure:
             XCTFail("Not expecting failure")
         }

@@ -55,7 +55,7 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
         let fetchRequest = NSFetchRequest<RepoMovie>(entityName: "RepoMovie")
         try await repositoryContext().perform {
             let count = try self.repositoryContext().count(for: fetchRequest)
-            XCTAssert(count == 0, "Count of objects in CoreData should be zero at the start of each test.")
+            XCTAssertEqual(count, 0, "Count of objects in CoreData should be zero at the start of each test.")
         }
 
         let request = NSBatchInsertRequest(entityName: try XCTUnwrap(RepoMovie.entity().name), objects: movies)
@@ -70,8 +70,9 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
 
         try await repositoryContext().perform {
             let data = try self.repositoryContext().fetch(fetchRequest)
-            XCTAssert(
-                data.map { $0.title ?? "" }.sorted() == ["A", "B", "C", "D", "E"],
+            XCTAssertEqual(
+                data.map { $0.title ?? "" }.sorted(),
+                ["A", "B", "C", "D", "E"],
                 "Inserted titles should match expectation"
             )
         }
@@ -82,7 +83,7 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
         let fetchRequest = NSFetchRequest<RepoMovie>(entityName: "RepoMovie")
         try await repositoryContext().perform {
             let count = try self.repositoryContext().count(for: fetchRequest)
-            XCTAssert(count == 0, "Count of objects in CoreData should be zero at the start of each test.")
+            XCTAssertEqual(count, 0, "Count of objects in CoreData should be zero at the start of each test.")
         }
 
         let request = NSBatchInsertRequest(entityName: try XCTUnwrap(RepoMovie.entity().name), objects: failureInsertMovies)
@@ -97,7 +98,7 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
 
         try await repositoryContext().perform {
             let data = try self.repositoryContext().fetch(fetchRequest)
-            XCTAssert(data.map { $0.title ?? "" }.sorted() == [], "There should be no inserted values.")
+            XCTAssertEqual(data.map { $0.title ?? "" }.sorted(), [], "There should be no inserted values.")
         }
         
     }
@@ -106,7 +107,7 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
         let fetchRequest = NSFetchRequest<RepoMovie>(entityName: "RepoMovie")
         try await repositoryContext().perform {
             let count = try self.repositoryContext().count(for: fetchRequest)
-            XCTAssert(count == 0, "Count of objects in CoreData should be zero at the start of each test.")
+            XCTAssertEqual(count, 0, "Count of objects in CoreData should be zero at the start of each test.")
         }
         
         let newMovies = try movies.map(mapDictToMovie(_:))
@@ -130,7 +131,7 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
         var movies = [Movie]()
         try await repositoryContext().perform {
             let count = try self.repositoryContext().count(for: fetchRequest)
-            XCTAssert(count == 0, "Count of objects in CoreData should be zero at the start of each test.")
+            XCTAssertEqual(count, 0, "Count of objects in CoreData should be zero at the start of each test.")
 
             let repoMovies = try self.movies
                 .map(self.mapDictToRepoMovie(_:))
@@ -143,14 +144,14 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
         XCTAssertEqual(result.success.count, movies.count)
         XCTAssertEqual(result.failed.count, 0)
 
-        XCTAssert(Set(movies) == Set(result.success))
+        XCTAssertEqual(Set(movies), Set(result.success))
     }
 
     func testUpdateSuccess() async throws {
         let fetchRequest = NSFetchRequest<RepoMovie>(entityName: "RepoMovie")
         try await repositoryContext().perform {
             let count = try self.repositoryContext().count(for: fetchRequest)
-            XCTAssert(count == 0, "Count of objects in CoreData should be zero at the start of each test.")
+            XCTAssertEqual(count, 0, "Count of objects in CoreData should be zero at the start of each test.")
 
             let _ = try self.movies
                 .map(self.mapDictToRepoMovie(_:))
@@ -166,8 +167,9 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
         
         try await repositoryContext().perform {
             let data = try self.repositoryContext().fetch(fetchRequest)
-            XCTAssert(
-                data.map { $0.title ?? "" }.sorted() == ["Updated!", "Updated!", "Updated!", "Updated!", "Updated!"],
+            XCTAssertEqual(
+                data.map { $0.title ?? "" }.sorted(),
+                ["Updated!", "Updated!", "Updated!", "Updated!", "Updated!"],
                 "Updated titles should match request"
             )
         }
@@ -178,7 +180,7 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
         var movies = [Movie]()
         try await repositoryContext().perform {
             let count = try self.repositoryContext().count(for: fetchRequest)
-            XCTAssert(count == 0, "Count of objects in CoreData should be zero at the start of each test.")
+            XCTAssertEqual(count, 0, "Count of objects in CoreData should be zero at the start of each test.")
 
             let repoMovies = try self.movies
                 .map(self.mapDictToRepoMovie(_:))
@@ -195,14 +197,14 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
         XCTAssertEqual(result.success.count, movies.count)
         XCTAssertEqual(result.failed.count, 0)
 
-        XCTAssert(Set(editedMovies) == Set(result.success))
+        XCTAssertEqual(Set(editedMovies), Set(result.success))
     }
 
     func testDeleteSuccess() async throws {
         let fetchRequest = NSFetchRequest<RepoMovie>(entityName: "RepoMovie")
         try await repositoryContext().perform {
             let count = try self.repositoryContext().count(for: fetchRequest)
-            XCTAssert(count == 0, "Count of objects in CoreData should be zero at the start of each test.")
+            XCTAssertEqual(count, 0, "Count of objects in CoreData should be zero at the start of each test.")
 
             let _ = try self.movies
                 .map(self.mapDictToRepoMovie(_:))
@@ -219,7 +221,7 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
         
         try await repositoryContext().perform {
             let data = try self.repositoryContext().fetch(fetchRequest)
-            XCTAssert(data.map { $0.title ?? "" }.sorted() == [], "There should be no remaining values.")
+            XCTAssertEqual(data.map { $0.title ?? "" }.sorted(), [], "There should be no remaining values.")
         }
     }
     
@@ -243,7 +245,7 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
 
         try await repositoryContext().perform {
             let data = try self.repositoryContext().fetch(fetchRequest)
-            XCTAssert(data.map { $0.title ?? "" }.sorted() == [], "There should be no remaining values.")
+            XCTAssertEqual(data.map { $0.title ?? "" }.sorted(), [], "There should be no remaining values.")
         }
     }
 }

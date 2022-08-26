@@ -20,27 +20,8 @@ extension CoreDataRepository {
     ///     -   _ item: Model
     ///     - transactionAuthor: String? = nil
     /// - Returns
-    ///     - AnyPublisher<Model, CoreDataRepositoryError>
+    ///     - Result<Model, CoreDataRepositoryError>
     ///
-    public func create<Model: UnmanagedModel>(
-        _ item: Model,
-        transactionAuthor: String? = nil
-    ) -> AnyPublisher<Model, CoreDataRepositoryError> {
-        Future { [context] promise in
-            context.performInScratchPad(promise: promise) { scratchPad in
-                scratchPad.transactionAuthor = transactionAuthor
-                let object = Model.RepoManaged(context: scratchPad)
-                object.create(from: item)
-                let result: Result<NSManagedObject, Error> = .success(object)
-                return result
-                    .map(to: Model.RepoManaged.self)
-                    .save(context: scratchPad)
-                    .map(\.asUnmanaged)
-                    .mapToRepoError()
-            }
-        }.eraseToAnyPublisher()
-    }
-
     public func create<Model: UnmanagedModel>(_ item: Model, transactionAuthor: String? = nil) async -> Result<Model, CoreDataRepositoryError> {
         await context.performInScratchPad(schedule: .enqueued) { scratchPad in
             scratchPad.transactionAuthor = transactionAuthor
@@ -57,23 +38,8 @@ extension CoreDataRepository {
     /// - Parameters
     ///     -   _ objectID: NSManagedObjectID
     /// - Returns
-    ///     - AnyPublisher<Model, CoreDataRepositoryError>
+    ///     - Result<Model, CoreDataRepositoryError>
     ///
-    public func read<Model: UnmanagedModel>(_ url: URL) -> AnyPublisher<Model, CoreDataRepositoryError> {
-        let readContext = context.childContext()
-        return Future { promise in
-            readContext.perform {
-                promise(
-                    readContext.objectId(from: url)
-                        .mapToNSManagedObject(context: readContext)
-                        .map(to: Model.RepoManaged.self)
-                        .map(\.asUnmanaged)
-                        .mapToRepoError()
-                )
-            }
-        }.eraseToAnyPublisher()
-    }
-
     public func read<Model: UnmanagedModel>(_ url: URL) async -> Result<Model, CoreDataRepositoryError> {
         await context.performInChild(schedule: .enqueued) { readContext in
             let id = try readContext.tryObjectId(from: url)
@@ -92,30 +58,8 @@ extension CoreDataRepository {
     ///     - with  item: Model
     ///     - transactionAuthor: String? = nil
     /// - Returns
-    ///     - AnyPublisher<Model, CoreDataRepositoryError>
+    ///     - Result<Model, CoreDataRepositoryError>
     ///
-    public func update<Model: UnmanagedModel>(
-        _ url: URL,
-        with item: Model,
-        transactionAuthor: String? = nil
-    ) -> AnyPublisher<Model, CoreDataRepositoryError> {
-        Future { [context] promise in
-            context.performInScratchPad(promise: promise) { scratchPad in
-                scratchPad.transactionAuthor = transactionAuthor
-                return scratchPad.objectId(from: url)
-                    .mapToNSManagedObject(context: scratchPad)
-                    .map(to: Model.RepoManaged.self)
-                    .map { repoManaged -> Model.RepoManaged in
-                        repoManaged.update(from: item)
-                        return repoManaged
-                    }
-                    .save(context: scratchPad)
-                    .map(\.asUnmanaged)
-                    .mapToRepoError()
-            }
-        }.eraseToAnyPublisher()
-    }
-
     public func update<Model: UnmanagedModel>(
         _ url: URL,
         with item: Model,
@@ -139,28 +83,8 @@ extension CoreDataRepository {
     ///     - objectID: NSManagedObjectID
     ///     - transactionAuthor: String? = nil
     /// - Returns
-    ///     - AnyPublisher<Void, CoreDataRepositoryError>
+    ///     - Result<Void, CoreDataRepositoryError>
     ///
-    public func delete(
-        _ url: URL,
-        transactionAuthor: String? = nil
-    ) -> AnyPublisher<Void, CoreDataRepositoryError> {
-        Future { [context] promise in
-            context.performInScratchPad(promise: promise) { scratchPad in
-                scratchPad.transactionAuthor = transactionAuthor
-                return scratchPad.objectId(from: url)
-                    .mapToNSManagedObject(context: scratchPad)
-                    .map { repoManaged in
-                        repoManaged.prepareForDeletion()
-                        scratchPad.delete(repoManaged)
-                        return ()
-                    }
-                    .save(context: scratchPad)
-                    .mapToRepoError()
-            }
-        }.eraseToAnyPublisher()
-    }
-
     public func delete(
         _ url: URL,
         transactionAuthor: String? = nil

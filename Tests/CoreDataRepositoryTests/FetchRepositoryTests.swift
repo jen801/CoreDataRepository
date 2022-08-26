@@ -12,10 +12,6 @@ import CoreDataRepository
 import XCTest
 
 final class FetchRepositoryTests: CoreDataXCTestCase {
-    static var allTests = [
-        ("testFetchSuccess", testFetchSuccess),
-        ("testFetchSubscriptionSuccess", testFetchSubscriptionSuccess),
-    ]
 
     let fetchRequest: NSFetchRequest<RepoMovie> = {
         let request = NSFetchRequest<RepoMovie>(entityName: "RepoMovie")
@@ -31,45 +27,24 @@ final class FetchRepositoryTests: CoreDataXCTestCase {
         Movie(id: UUID(), title: "E", releaseDate: Date()),
     ]
     var expectedMovies = [Movie]()
-    var _repository: CoreDataRepository?
-    var repository: CoreDataRepository { _repository! }
 
     override func setUpWithError() throws {
         try super.setUpWithError()
-        _repository = CoreDataRepository(context: viewContext)
-        _ = movies.map { $0.asRepoManaged(in: viewContext) }
-        try viewContext.save()
-        expectedMovies = try viewContext.fetch(fetchRequest).map(\.asUnmanaged)
+        expectedMovies = try repositoryContext().performAndWait {
+            _ = try self.movies.map { $0.asRepoManaged(in: try repositoryContext()) }
+            try self.repositoryContext().save()
+            return try self.repositoryContext().fetch(fetchRequest).map(\.asUnmanaged)
+        }
+        
     }
 
     override func tearDownWithError() throws {
         try super.tearDownWithError()
-        _repository = nil
         expectedMovies = []
     }
 
-    func testFetchSuccess() throws {
-        let exp = expectation(description: "Fetch movies from CoreData")
-        let result: AnyPublisher<[Movie], CoreDataRepositoryError> = repository.fetch(fetchRequest)
-        result.subscribe(on: backgroundQueue)
-            .receive(on: mainQueue)
-            .sink(receiveCompletion: { completion in
-                switch completion {
-                case .finished:
-                    exp.fulfill()
-                default:
-                    XCTFail("Not expecting failure")
-                }
-            }, receiveValue: { items in
-                XCTAssert(items.count == 5, "Result items count should match expectation")
-                XCTAssert(items == self.expectedMovies, "Result items should match expectations")
-            })
-            .store(in: &cancellables)
-        wait(for: [exp], timeout: 5)
-    }
-
-    func testFetchAsyncSuccess() async throws {
-        let result: Result<[Movie], CoreDataRepositoryError> = await repository.fetch(fetchRequest)
+    func testFetchSuccess() async throws {
+        let result: Result<[Movie], CoreDataRepositoryError> = try await repository().fetch(fetchRequest)
         switch result {
         case let .success(movies):
             XCTAssert(movies.count == 5, "Result items count should match expectation")
@@ -79,11 +54,11 @@ final class FetchRepositoryTests: CoreDataXCTestCase {
         }
     }
 
-    func testFetchSubscriptionSuccess() throws {
+    func testFetchSubscriptionSuccess() async throws {
         let firstExp = expectation(description: "Fetch movies from CoreData")
         let secondExp = expectation(description: "Fetch movies again after CoreData context is updated")
         var resultCount = 0
-        let result: AnyPublisher<[Movie], CoreDataRepositoryError> = repository.fetchSubscription(fetchRequest)
+        let result: AnyPublisher<[Movie], CoreDataRepositoryError> = try repository().fetchSubscription(fetchRequest)
         result.subscribe(on: backgroundQueue)
             .receive(on: mainQueue)
             .sink(receiveCompletion: { completion in
@@ -111,8 +86,16 @@ final class FetchRepositoryTests: CoreDataXCTestCase {
             })
             .store(in: &cancellables)
         wait(for: [firstExp], timeout: 5)
-        let crudRepository = CoreDataRepository(context: viewContext)
-        let _: AnyPublisher<Void, CoreDataRepositoryError> = crudRepository
+        let crudRepository = CoreDataRepository(context: try repositoryContext())
+        _ = try await repositoryContext().perform { [self] in
+            let url = try XCTUnwrap(expectedMovies.last?.url)
+            let coordinator = try XCTUnwrap(try repositoryContext().persistentStoreCoordinator)
+            let objectId = try XCTUnwrap(coordinator.managedObjectID(forURIRepresentation: url))
+            let object = try repositoryContext().existingObject(with: objectId)
+            try repositoryContext().delete(object)
+            try repositoryContext().save()
+        }
+        let _: Result<Void, CoreDataRepositoryError> = await crudRepository
             .delete(try XCTUnwrap(expectedMovies.last?.url))
         wait(for: [secondExp], timeout: 5)
     }

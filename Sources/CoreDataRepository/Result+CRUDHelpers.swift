@@ -31,17 +31,25 @@ extension Result where Success == NSManagedObject, Failure == Error {
     }
 }
 
-extension Result where Failure == Error {
-    func save(context: NSManagedObjectContext) -> Result<Success, Error> {
-        flatMap { success -> Result<Success, Error> in
-            Result<Success, Error> {
+extension Result where Failure == CoreDataRepositoryError {
+    func save(context: NSManagedObjectContext) -> Result<Success, CoreDataRepositoryError> {
+        flatMap { success in
+            do {
                 try context.save()
                 if let parentContext = context.parent {
-                    try DispatchQueue.main.sync {
-                        try parentContext.save()
+                    var result: Result<Success, CoreDataRepositoryError> = .success(success)
+                    parentContext.performAndWait {
+                        do {
+                            try parentContext.save()
+                        } catch {
+                            result = .failure(.coreData(error as NSError))
+                        }
                     }
+                    return result
                 }
-                return success
+                return .success(success)
+            } catch {
+                return .failure(.coreData(error as NSError))
             }
         }
     }

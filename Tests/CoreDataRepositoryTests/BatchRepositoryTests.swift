@@ -13,16 +13,6 @@ import CustomDump
 import XCTest
 
 final class BatchRepositoryTests: CoreDataXCTestCase {
-    static var allTests = [
-        ("testInsertSuccess", testInsertSuccess),
-        ("testInsertFailure", testInsertFailure),
-        ("testCreateSuccess", testCreateSuccess),
-        ("testReadSuccess", testReadSuccess),
-        ("testUpdateSuccess", testUpdateSuccess),
-        ("testAltUpdateSuccess", testAltUpdateSuccess),
-        ("testDeleteSuccess", testDeleteSuccess),
-        ("testAltDeleteSuccess", testAltDeleteSuccess),
-    ]
 
     let movies: [[String: Any]] = [
         ["id": UUID(), "title": "A", "releaseDate": Date()],
@@ -49,22 +39,9 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
         ]
     }()
 
-    var _repository: CoreDataRepository?
-    var repository: CoreDataRepository { _repository! }
-
-    override func setUp() {
-        super.setUp()
-        _repository = CoreDataRepository(context: viewContext)
-    }
-
-    override func tearDown() {
-        super.tearDown()
-        _repository = nil
-    }
-
     func mapDictToRepoMovie(_ dict: [String: Any]) throws -> RepoMovie {
         try mapDictToMovie(dict)
-            .asRepoManaged(in: viewContext)
+            .asRepoManaged(in: try repositoryContext())
     }
 
     func mapDictToMovie(_ dict: [String: Any]) throws -> Movie {
@@ -74,49 +51,15 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
         return Movie(id: id, title: title, releaseDate: releaseDate)
     }
 
-    func testInsertSuccess() throws {
+    func testInsertSuccess() async throws {
         let fetchRequest = NSFetchRequest<RepoMovie>(entityName: "RepoMovie")
-        let count = try viewContext.count(for: fetchRequest)
-        XCTAssert(count == 0, "Count of objects in CoreData should be zero at the start of each test.")
-
-        let exp = expectation(description: "Successfully batch insert movies.")
-        let request = NSBatchInsertRequest(entityName: try XCTUnwrap(RepoMovie.entity().name), objects: movies)
-        repository.insert(request)
-            .subscribe(on: backgroundQueue)
-            .receive(on: mainQueue)
-            .sink(
-                receiveCompletion: { completion in
-                    switch completion {
-                    case .finished:
-                        break
-                    case .failure:
-                        XCTFail("Not expecting failure")
-                        exp.fulfill()
-                    }
-                },
-                receiveValue: { _ in
-                    exp.fulfill()
-                }
-            )
-            .store(in: &cancellables)
-        wait(for: [exp], timeout: 5)
-
-        let data = try viewContext.fetch(fetchRequest)
-        XCTAssert(
-            data.map { $0.title ?? "" }.sorted() == ["A", "B", "C", "D", "E"],
-            "Inserted titles should match expectation"
-        )
-    }
-
-    func testInsertAsyncSuccess() async throws {
-        let fetchRequest = NSFetchRequest<RepoMovie>(entityName: "RepoMovie")
-        try await viewContext.perform {
-            let count = try self.viewContext.count(for: fetchRequest)
+        try await repositoryContext().perform {
+            let count = try self.repositoryContext().count(for: fetchRequest)
             XCTAssert(count == 0, "Count of objects in CoreData should be zero at the start of each test.")
         }
 
         let request = NSBatchInsertRequest(entityName: try XCTUnwrap(RepoMovie.entity().name), objects: movies)
-        let result: Result<NSBatchInsertResult, CoreDataRepositoryError> = await repository.insert(request)
+        let result: Result<NSBatchInsertResult, CoreDataRepositoryError> = try await repository().insert(request)
 
         switch result {
         case .success:
@@ -125,8 +68,8 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
             XCTFail("Not expecting a failure result")
         }
 
-        try await viewContext.perform {
-            let data = try self.viewContext.fetch(fetchRequest)
+        try await repositoryContext().perform {
+            let data = try self.repositoryContext().fetch(fetchRequest)
             XCTAssert(
                 data.map { $0.title ?? "" }.sorted() == ["A", "B", "C", "D", "E"],
                 "Inserted titles should match expectation"
@@ -135,47 +78,15 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
         
     }
 
-    func testInsertFailure() throws {
+    func testInsertFailure() async throws {
         let fetchRequest = NSFetchRequest<RepoMovie>(entityName: "RepoMovie")
-        let count = try viewContext.count(for: fetchRequest)
-        XCTAssert(count == 0, "Count of objects in CoreData should be zero at the start of each test.")
-
-        let exp = expectation(description: "Fail to batch insert movies.")
-        let request = NSBatchInsertRequest(
-            entityName: try XCTUnwrap(RepoMovie.entity().name),
-            objects: failureInsertMovies
-        )
-        repository.insert(request)
-            .subscribe(on: backgroundQueue)
-            .receive(on: mainQueue)
-            .sink(
-                receiveCompletion: { completion in
-                    switch completion {
-                    case .failure:
-                        exp.fulfill()
-                    case .finished:
-                        XCTFail("Not expecting success")
-                        exp.fulfill()
-                    }
-                },
-                receiveValue: { _ in }
-            )
-            .store(in: &cancellables)
-        wait(for: [exp], timeout: 5)
-
-        let data = try viewContext.fetch(fetchRequest)
-        XCTAssert(data.map { $0.title ?? "" }.sorted() == [], "There should be no inserted values.")
-    }
-
-    func testInsertAsyncFailure() async throws {
-        let fetchRequest = NSFetchRequest<RepoMovie>(entityName: "RepoMovie")
-        try await viewContext.perform {
-            let count = try self.viewContext.count(for: fetchRequest)
+        try await repositoryContext().perform {
+            let count = try self.repositoryContext().count(for: fetchRequest)
             XCTAssert(count == 0, "Count of objects in CoreData should be zero at the start of each test.")
         }
 
         let request = NSBatchInsertRequest(entityName: try XCTUnwrap(RepoMovie.entity().name), objects: failureInsertMovies)
-        let result: Result<NSBatchInsertResult, CoreDataRepositoryError> = await repository.insert(request)
+        let result: Result<NSBatchInsertResult, CoreDataRepositoryError> = try await repository().insert(request)
 
         switch result {
         case .success:
@@ -184,122 +95,50 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
             XCTAssert(true)
         }
 
-        try await viewContext.perform {
-            let data = try self.viewContext.fetch(fetchRequest)
+        try await repositoryContext().perform {
+            let data = try self.repositoryContext().fetch(fetchRequest)
             XCTAssert(data.map { $0.title ?? "" }.sorted() == [], "There should be no inserted values.")
         }
         
     }
 
-    func testCreateSuccess() throws {
+    func testCreateSuccess() async throws {
         let fetchRequest = NSFetchRequest<RepoMovie>(entityName: "RepoMovie")
-        let count = try viewContext.count(for: fetchRequest)
-        XCTAssert(count == 0, "Count of objects in CoreData should be zero at the start of each test.")
-
-        let exp = expectation(description: "Successfully batch insert movies.")
-        let newMovies = try movies.map(mapDictToMovie(_:))
-        let publisher: AnyPublisher<(success: [Movie], failed: [Movie]), Never> = repository.create(newMovies)
-        publisher
-            .subscribe(on: backgroundQueue)
-            .receive(on: mainQueue)
-            .sink(
-                receiveCompletion: { completion in
-                    switch completion {
-                    case .finished:
-                        break
-                    case .failure:
-                        XCTFail("Not expecting failure")
-                        exp.fulfill()
-                    }
-                },
-                receiveValue: { _ in
-                    exp.fulfill()
-                }
-            )
-            .store(in: &cancellables)
-        wait(for: [exp], timeout: 5)
-
-        let data = try viewContext.fetch(fetchRequest)
-        XCTAssert(
-            data.map { $0.title ?? "" }.sorted() == ["A", "B", "C", "D", "E"],
-            "Inserted titles should match expectation"
-        )
-    }
-
-    func testCreateAsyncSuccess() async throws {
-        let fetchRequest = NSFetchRequest<RepoMovie>(entityName: "RepoMovie")
-        try await viewContext.perform {
-            let count = try self.viewContext.count(for: fetchRequest)
+        try await repositoryContext().perform {
+            let count = try self.repositoryContext().count(for: fetchRequest)
             XCTAssert(count == 0, "Count of objects in CoreData should be zero at the start of each test.")
         }
         
         let newMovies = try movies.map(mapDictToMovie(_:))
-        let result: (success: [Movie], failed: [Movie]) = await repository.create(newMovies)
+        let result: (success: [Movie], failed: [Movie]) = try await repository().create(newMovies)
         
         XCTAssertEqual(result.success.count, newMovies.count)
         XCTAssertEqual(result.failed.count, 0)
 
-        try await viewContext.perform {
-            let data = try self.viewContext.fetch(fetchRequest)
-            XCTAssert(
-                data.map { $0.title ?? "" }.sorted() == ["A", "B", "C", "D", "E"],
+        try await repositoryContext().perform {
+            let data = try self.repositoryContext().fetch(fetchRequest)
+            XCTAssertEqual(
+                data.map { $0.title ?? "" }.sorted(),
+                ["A", "B", "C", "D", "E"],
                 "Inserted titles should match expectation"
             )
         }
     }
 
-    func testReadSuccess() throws {
-        let fetchRequest = NSFetchRequest<RepoMovie>(entityName: "RepoMovie")
-        let count = try viewContext.count(for: fetchRequest)
-        XCTAssert(count == 0, "Count of objects in CoreData should be zero at the start of each test.")
-
-        let repoMovies = try movies
-            .map(mapDictToRepoMovie(_:))
-        try viewContext.save()
-
-        let exp = expectation(description: "Successfully batch update movies.")
-        let urlsToRead = repoMovies.map(\.asUnmanaged).compactMap(\.url)
-        var resultingMovies = [Movie]()
-        let publisher: AnyPublisher<(success: [Movie], failed: [URL]), Never> = repository.read(urls: urlsToRead)
-        publisher
-            .subscribe(on: backgroundQueue)
-            .receive(on: mainQueue)
-            .sink(
-                receiveCompletion: { completion in
-                    switch completion {
-                    case .finished:
-                        break
-                    case .failure:
-                        XCTFail("Not expecting Failure")
-                        exp.fulfill()
-                    }
-                },
-                receiveValue: { result in
-                    XCTAssert(result.failed.isEmpty, "None should fail")
-                    resultingMovies = result.success
-                    exp.fulfill()
-                }
-            )
-            .store(in: &cancellables)
-        wait(for: [exp], timeout: 5)
-
-        XCTAssert(Set(resultingMovies) == Set(repoMovies.map(\.asUnmanaged)), "")
-    }
-
-    func testReadAsyncSuccess() async throws {
+    func testReadSuccess() async throws {
         let fetchRequest = NSFetchRequest<RepoMovie>(entityName: "RepoMovie")
         var movies = [Movie]()
-        try await viewContext.perform {
-            let count = try self.viewContext.count(for: fetchRequest)
+        try await repositoryContext().perform {
+            let count = try self.repositoryContext().count(for: fetchRequest)
             XCTAssert(count == 0, "Count of objects in CoreData should be zero at the start of each test.")
 
             let repoMovies = try self.movies
                 .map(self.mapDictToRepoMovie(_:))
-            try self.viewContext.save()
+            try self.repositoryContext().save()
             movies = repoMovies.map(\.asUnmanaged)
         }
         
-        let result: (success: [Movie], failed: [URL]) = await repository.read(urls: movies.compactMap(\.url))
+        let result: (success: [Movie], failed: [URL]) = try await repository().read(urls: movies.compactMap(\.url))
         
         XCTAssertEqual(result.success.count, movies.count)
         XCTAssertEqual(result.failed.count, 0)
@@ -307,56 +146,15 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
         XCTAssert(Set(movies) == Set(result.success))
     }
 
-    func testUpdateSuccess() throws {
+    func testUpdateSuccess() async throws {
         let fetchRequest = NSFetchRequest<RepoMovie>(entityName: "RepoMovie")
-        let count = try viewContext.count(for: fetchRequest)
-        XCTAssert(count == 0, "Count of objects in CoreData should be zero at the start of each test.")
-
-        _ = try movies
-            .map(mapDictToRepoMovie(_:))
-        try viewContext.save()
-
-        let exp = expectation(description: "Successfully batch update movies.")
-        let predicate = NSPredicate(value: true)
-        let request = NSBatchUpdateRequest(entityName: try XCTUnwrap(RepoMovie.entity().name))
-        request.predicate = predicate
-        request.propertiesToUpdate = ["title": "Updated!", "boxOffice": 1]
-        repository.update(request)
-            .subscribe(on: backgroundQueue)
-            .receive(on: mainQueue)
-            .sink(
-                receiveCompletion: { completion in
-                    switch completion {
-                    case .finished:
-                        break
-                    case .failure:
-                        XCTFail("Not expecting Failure")
-                        exp.fulfill()
-                    }
-                },
-                receiveValue: { _ in
-                    exp.fulfill()
-                }
-            )
-            .store(in: &cancellables)
-        wait(for: [exp], timeout: 5)
-
-        let data = try viewContext.fetch(fetchRequest)
-        XCTAssert(
-            data.map { $0.title ?? "" }.sorted() == ["Updated!", "Updated!", "Updated!", "Updated!", "Updated!"],
-            "Updated titles should match request"
-        )
-    }
-
-    func testUpdateAsyncSuccess() async throws {
-        let fetchRequest = NSFetchRequest<RepoMovie>(entityName: "RepoMovie")
-        try await viewContext.perform {
-            let count = try self.viewContext.count(for: fetchRequest)
+        try await repositoryContext().perform {
+            let count = try self.repositoryContext().count(for: fetchRequest)
             XCTAssert(count == 0, "Count of objects in CoreData should be zero at the start of each test.")
 
             let _ = try self.movies
                 .map(self.mapDictToRepoMovie(_:))
-            try self.viewContext.save()
+            try self.repositoryContext().save()
         }
         
         let predicate = NSPredicate(value: true)
@@ -364,10 +162,10 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
         request.predicate = predicate
         request.propertiesToUpdate = ["title": "Updated!", "boxOffice": 1]
         
-        let _: Result<NSBatchUpdateResult, CoreDataRepositoryError> = await repository.update(request)
+        let _: Result<NSBatchUpdateResult, CoreDataRepositoryError> = try await repository().update(request)
         
-        try await viewContext.perform {
-            let data = try self.viewContext.fetch(fetchRequest)
+        try await repositoryContext().perform {
+            let data = try self.repositoryContext().fetch(fetchRequest)
             XCTAssert(
                 data.map { $0.title ?? "" }.sorted() == ["Updated!", "Updated!", "Updated!", "Updated!", "Updated!"],
                 "Updated titles should match request"
@@ -375,55 +173,16 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
         }
     }
 
-    func testAltUpdateSuccess() throws {
-        let fetchRequest = NSFetchRequest<RepoMovie>(entityName: "RepoMovie")
-        let count = try viewContext.count(for: fetchRequest)
-        XCTAssert(count == 0, "Count of objects in CoreData should be zero at the start of each test.")
-
-        let repoMovies = try movies
-            .map(mapDictToRepoMovie(_:))
-        try viewContext.save()
-
-        let exp = expectation(description: "Successfully batch update movies.")
-        var editedMovies = repoMovies.map(\.asUnmanaged)
-        let newTitles = ["ZA", "ZB", "ZC", "ZD", "ZE"]
-        var resultingMovies = [Movie]()
-        newTitles.enumerated().forEach { index, title in editedMovies[index].title = title }
-        repository.update(editedMovies)
-            .subscribe(on: backgroundQueue)
-            .receive(on: mainQueue)
-            .sink(
-                receiveCompletion: { completion in
-                    switch completion {
-                    case .finished:
-                        break
-                    case .failure:
-                        XCTFail("Not expecting Failure")
-                        exp.fulfill()
-                    }
-                },
-                receiveValue: { result in
-                    XCTAssert(result.failed.isEmpty, "None should fail")
-                    resultingMovies = result.success
-                    exp.fulfill()
-                }
-            )
-            .store(in: &cancellables)
-        wait(for: [exp], timeout: 5)
-
-        XCTAssert(Set(editedMovies) == Set(resultingMovies), "")
-    }
-
-    func testAltUpdateAsyncSuccess() async throws {
+    func testAltUpdateSuccess() async throws {
         let fetchRequest = NSFetchRequest<RepoMovie>(entityName: "RepoMovie")
         var movies = [Movie]()
-        try await viewContext.perform {
-            let count = try self.viewContext.count(for: fetchRequest)
+        try await repositoryContext().perform {
+            let count = try self.repositoryContext().count(for: fetchRequest)
             XCTAssert(count == 0, "Count of objects in CoreData should be zero at the start of each test.")
 
             let repoMovies = try self.movies
                 .map(self.mapDictToRepoMovie(_:))
-            try self.viewContext.save()
+            try self.repositoryContext().save()
             movies = repoMovies.map(\.asUnmanaged)
         }
         
@@ -431,7 +190,7 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
         let newTitles = ["ZA", "ZB", "ZC", "ZD", "ZE"]
         newTitles.enumerated().forEach { index, title in editedMovies[index].title = title }
         
-        let result: (success: [Movie], failed: [Movie]) = await repository.update(editedMovies)
+        let result: (success: [Movie], failed: [Movie]) = try await repository().update(editedMovies)
         
         XCTAssertEqual(result.success.count, movies.count)
         XCTAssertEqual(result.failed.count, 0)
@@ -439,55 +198,15 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
         XCTAssert(Set(editedMovies) == Set(result.success))
     }
 
-    func testDeleteSuccess() throws {
+    func testDeleteSuccess() async throws {
         let fetchRequest = NSFetchRequest<RepoMovie>(entityName: "RepoMovie")
-        let count = try viewContext.count(for: fetchRequest)
-        XCTAssert(count == 0, "Count of objects in CoreData should be zero at the start of each test.")
-
-        _ = try movies
-            .map(mapDictToRepoMovie(_:))
-        try viewContext.save()
-
-        let exp = expectation(description: "Successfully batch delete movies.")
-        let request =
-            NSBatchDeleteRequest(fetchRequest: NSFetchRequest<NSFetchRequestResult>(entityName: try XCTUnwrap(
-                RepoMovie
-                    .entity().name
-            )))
-        repository.delete(request)
-            .subscribe(on: backgroundQueue)
-            .receive(on: mainQueue)
-            .sink(
-                receiveCompletion: { completion in
-                    switch completion {
-                    case .finished:
-                        break
-                    case .failure:
-                        XCTFail("Not expecting failure")
-                        exp.fulfill()
-                    }
-                },
-                receiveValue: { _ in
-                    exp.fulfill()
-                }
-            )
-            .store(in: &cancellables)
-        wait(for: [exp], timeout: 5)
-        viewContext.reset()
-
-        let data = try viewContext.fetch(fetchRequest)
-        XCTAssert(data.map { $0.title ?? "" }.sorted() == [], "There should be no remaining values.")
-    }
-
-    func testDeleteAsyncSuccess() async throws {
-        let fetchRequest = NSFetchRequest<RepoMovie>(entityName: "RepoMovie")
-        try await viewContext.perform {
-            let count = try self.viewContext.count(for: fetchRequest)
+        try await repositoryContext().perform {
+            let count = try self.repositoryContext().count(for: fetchRequest)
             XCTAssert(count == 0, "Count of objects in CoreData should be zero at the start of each test.")
 
             let _ = try self.movies
                 .map(self.mapDictToRepoMovie(_:))
-            try self.viewContext.save()
+            try self.repositoryContext().save()
         }
 
         let request =
@@ -496,70 +215,34 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
                     .entity().name
             )))
         
-        let _: Result<NSBatchDeleteResult, CoreDataRepositoryError> = await repository.delete(request)
+        let _: Result<NSBatchDeleteResult, CoreDataRepositoryError> = try await repository().delete(request)
         
-        try await viewContext.perform {
-            let data = try self.viewContext.fetch(fetchRequest)
+        try await repositoryContext().perform {
+            let data = try self.repositoryContext().fetch(fetchRequest)
             XCTAssert(data.map { $0.title ?? "" }.sorted() == [], "There should be no remaining values.")
         }
     }
-
-    func testAltDeleteSuccess() throws {
-        let fetchRequest = NSFetchRequest<RepoMovie>(entityName: "RepoMovie")
-        let count = try viewContext.count(for: fetchRequest)
-        XCTAssert(count == 0, "Count of objects in CoreData should be zero at the start of each test.")
-
-        let repoMovies = try movies
-            .map(mapDictToRepoMovie(_:))
-        try viewContext.save()
-
-        let exp = expectation(description: "Successfully batch update movies.")
-        let urlsToDelete = repoMovies.map(\.asUnmanaged).compactMap(\.url)
-        repository.delete(urls: urlsToDelete)
-            .subscribe(on: backgroundQueue)
-            .receive(on: mainQueue)
-            .sink(
-                receiveCompletion: { completion in
-                    switch completion {
-                    case .finished:
-                        break
-                    case .failure:
-                        XCTFail("Not expecting Failure")
-                        exp.fulfill()
-                    }
-                },
-                receiveValue: { result in
-                    XCTAssert(result.failed.isEmpty, "None should fail")
-                    exp.fulfill()
-                }
-            )
-            .store(in: &cancellables)
-        wait(for: [exp], timeout: 5)
-
-        let data = try viewContext.fetch(fetchRequest)
-        XCTAssert(data.map { $0.title ?? "" }.sorted() == [], "There should be no remaining values.")
-    }
-
-    func testAltDeleteAsyncSuccess() async throws {
+    
+    func testAltDeleteSuccess() async throws {
         let fetchRequest = NSFetchRequest<RepoMovie>(entityName: "RepoMovie")
         var movies = [Movie]()
-        try await viewContext.perform {
-            let count = try self.viewContext.count(for: fetchRequest)
-            XCTAssert(count == 0, "Count of objects in CoreData should be zero at the start of each test.")
+        try await repositoryContext().perform {
+            let count = try self.repositoryContext().count(for: fetchRequest)
+            XCTAssertEqual(count, 0, "Count of objects in CoreData should be zero at the start of each test.")
 
             let repoMovies = try self.movies
                 .map(self.mapDictToRepoMovie(_:))
-            try self.viewContext.save()
+            try self.repositoryContext().save()
             movies = repoMovies.map(\.asUnmanaged)
         }
         
-        let result: (success: [URL], failed: [URL]) = await repository.delete(urls: movies.compactMap(\.url))
+        let result: (success: [URL], failed: [URL]) = try await repository().delete(urls: movies.compactMap(\.url))
         
         XCTAssertEqual(result.success.count, movies.count)
         XCTAssertEqual(result.failed.count, 0)
 
-        try await viewContext.perform {
-            let data = try self.viewContext.fetch(fetchRequest)
+        try await repositoryContext().perform {
+            let data = try self.repositoryContext().fetch(fetchRequest)
             XCTAssert(data.map { $0.title ?? "" }.sorted() == [], "There should be no remaining values.")
         }
     }

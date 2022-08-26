@@ -17,15 +17,8 @@ extension CoreDataRepository {
     /// - Parameters
     ///     - _ request: NSFetchRequest<Model.RepoManaged>
     /// - Returns
-    ///     - AnyPublisher<[Model], CoreDataRepositoryError>
+    ///     - Result<[Model], CoreDataRepositoryError>
     ///
-    public func fetch<Model: UnmanagedModel>(_ request: NSFetchRequest<Model.RepoManaged>)
-        -> AnyPublisher<[Model], CoreDataRepositoryError>
-    {
-        let fetchContext = context.childContext()
-        return _fetch(request, fetchContext: fetchContext)
-    }
-
     public func fetch<Model: UnmanagedModel>(_ request: NSFetchRequest<Model.RepoManaged>) async -> Result<[Model], CoreDataRepositoryError>
     {
         await context.performInChild { fetchContext in

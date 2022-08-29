@@ -200,17 +200,10 @@ final class CRUDRepositoryTests: CoreDataXCTestCase {
         let firstExp = expectation(description: "Read a movie from CoreData")
         let secondExp = expectation(description: "Read a movie again after CoreData context is updated")
         var resultCount = 0
-        let result: AnyPublisher<Movie, CoreDataRepositoryError> = try repository().readSubscription(try XCTUnwrap(movie.url))
-        result.subscribe(on: backgroundQueue)
-            .receive(on: mainQueue)
-            .sink(receiveCompletion: { completion in
-                switch completion {
-                case .finished:
-                    XCTFail("Not expecting completion since subscription finishes after subscriber cancel")
-                case .failure:
-                    XCTFail("Not expecting failure")
-                }
-            }, receiveValue: { receiveMovie in
+        let results: AsyncStream<Result<Movie, CoreDataRepositoryError>> = try repository().readSubscription(try XCTUnwrap(movie.url))
+        for await result in results {
+            switch result {
+            case let .success(receiveMovie):
                 resultCount += 1
                 switch resultCount {
                 case 1:
@@ -222,9 +215,11 @@ final class CRUDRepositoryTests: CoreDataXCTestCase {
                 default:
                     XCTFail("Not expecting any values past the first two.")
                 }
-
-            })
-            .store(in: &cancellables)
+            case .failure:
+                XCTFail("Note expecting failure")
+            }
+            
+        }
         wait(for: [firstExp], timeout: 5)
         try repositoryContext().performAndWait { [self] in
             let coordinator = try XCTUnwrap(try self.repositoryContext().persistentStoreCoordinator)

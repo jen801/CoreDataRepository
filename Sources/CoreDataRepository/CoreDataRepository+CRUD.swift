@@ -102,13 +102,20 @@ extension CoreDataRepository {
     /// Subscribe to updates for an instance of a NSManagedObject subclass.
     /// - Parameter publisher: Pub<Model, Error>
     /// - Returns: AnyPublisher<Model, CoreDataRepositoryError>
-    public func readSubscription<Model: UnmanagedModel>(_ url: URL) -> AnyPublisher<Model, CoreDataRepositoryError> {
+    public func readSubscription<Model: UnmanagedModel>(_ url: URL) -> AsyncStream<Result<Model, CoreDataRepositoryError>> {
         let readContext = context.childContext()
         let readPublisher: AnyPublisher<Model.RepoManaged, CoreDataRepositoryError> = readRepoManaged(url, readContext: readContext)
         var subjectCancellable: AnyCancellable?
-        return Publishers.Create<Model, CoreDataRepositoryError> { [weak self] subscriber in
+        return AsyncStream<Result<Model, CoreDataRepositoryError>> { [weak self] continuation in
             let subject = PassthroughSubject<Model, CoreDataRepositoryError>()
-            subjectCancellable = subject.sink(receiveCompletion: subscriber.send, receiveValue: subscriber.send)
+            subjectCancellable = subject.sink(
+                receiveCompletion: { _ in
+                    continuation.finish()
+                },
+                receiveValue: { value in
+                    continuation.yield(.success(value))
+                }
+            )
 
             let id = UUID()
             var subscription: SubscriptionProvider?
@@ -139,11 +146,11 @@ extension CoreDataRepository {
                     subscriptionProvider.manualFetch()
                 }
             ))
-            return AnyCancellable {
+            continuation.onTermination = { [subscription, weak self] _ in
                 subscription?.cancel()
                 self?.subscriptions.removeAll(where: { $0.id == id as AnyHashable })
             }
-        }.eraseToAnyPublisher()
+        }
     }
 
     private static func getObjectId(

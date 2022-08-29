@@ -19,18 +19,6 @@ extension Result where Success == NSManagedObjectID, Failure == Error {
     }
 }
 
-extension Result where Success == NSManagedObject, Failure == Error {
-    func map<T>(to _: T.Type) -> Result<T, Error>
-        where T: RepositoryManagedModel
-    {
-        flatMap { object -> Result<T, Error> in
-            Result<T, Error> {
-                try object.asRepoManaged()
-            }
-        }
-    }
-}
-
 extension Result where Failure == CoreDataRepositoryError {
     func save(context: NSManagedObjectContext) -> Result<Success, CoreDataRepositoryError> {
         flatMap { success in

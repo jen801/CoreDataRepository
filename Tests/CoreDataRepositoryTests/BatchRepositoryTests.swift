@@ -41,7 +41,7 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
 
     func mapDictToRepoMovie(_ dict: [String: Any]) throws -> RepoMovie {
         try mapDictToMovie(dict)
-            .asRepoManaged(in: try repositoryContext())
+            .asRepoMovie(in: try repositoryContext())
     }
 
     func mapDictToMovie(_ dict: [String: Any]) throws -> Movie {

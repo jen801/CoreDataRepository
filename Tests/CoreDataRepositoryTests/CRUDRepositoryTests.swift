@@ -183,7 +183,7 @@ final class CRUDRepositoryTests: CoreDataXCTestCase {
         XCTAssertEqual(count, 0, "Count of objects in CoreData should be zero at the start of each test.")
         
         let repoMovieUrl: URL = try await repositoryContext().perform { [self] in
-            let repoMovie = movie.asRepoManaged(in: try self.repositoryContext())
+            let repoMovie = movie.asRepoMovie(in: try self.repositoryContext())
             try self.repositoryContext().save()
             return repoMovie.objectID.uriRepresentation()
         }

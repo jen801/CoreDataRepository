@@ -31,7 +31,7 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
     override func setUpWithError() throws {
         try super.setUpWithError()
         try repositoryContext().performAndWait {
-            objectIDs = try movies.map { $0.asRepoManaged(in: try self.repositoryContext()).objectID }
+            objectIDs = try movies.map { $0.asRepoMovie(in: try self.repositoryContext()).objectID }
             try repositoryContext().save()
         }
     }

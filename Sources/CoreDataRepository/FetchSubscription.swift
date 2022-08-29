@@ -13,7 +13,7 @@ import Foundation
 /// Re-fetches data as the context changes until canceled
 final class FetchSubscription<
     Success,
-    Result: NSFetchRequestResult
+    FetchResult: NSFetchRequestResult
 >: NSObject, NSFetchedResultsControllerDelegate, SubscriptionProvider {
     // MARK: Properties
 
@@ -21,13 +21,13 @@ final class FetchSubscription<
     /// have multiple subscriptions running at once.
     let id: AnyHashable
     /// The fetch request to monitor
-    private let request: NSFetchRequest<Result>
+    private let request: NSFetchRequest<FetchResult>
     /// Fetched results controller that notifies the context has changed
-    private let frc: NSFetchedResultsController<Result>
+    private let frc: NSFetchedResultsController<FetchResult>
     /// Subject that sends data as updates happen
     let subject: PassthroughSubject<Success, CoreDataRepositoryError>
     /// Closure to construct Success
-    private let success: ([Result]) -> Success
+    private let success: ([FetchResult]) -> Result<Success, CoreDataRepositoryError>
 
     private var changeNotificationCancellable: AnyCancellable?
 
@@ -42,9 +42,9 @@ final class FetchSubscription<
     ///     - failure: @escaping (RepositoryErrors) -> Failure
     init(
         id: AnyHashable,
-        request: NSFetchRequest<Result>,
+        request: NSFetchRequest<FetchResult>,
         context: NSManagedObjectContext,
-        success: @escaping ([Result]) -> Success,
+        success: @escaping ([FetchResult]) -> Result<Success, CoreDataRepositoryError>,
         subject: PassthroughSubject<Success, CoreDataRepositoryError> = .init()
     ) {
         self.id = id
@@ -79,7 +79,12 @@ final class FetchSubscription<
                 self.start()
             }
             guard let items = self.frc.fetchedObjects else { return }
-            self.subject.send(self.success(items))
+            switch self.success(items) {
+            case let .success(success):
+                self.subject.send(success)
+            case let .failure(error):
+                self.subject.send(completion: .failure(error))
+            }
         }
     }
 

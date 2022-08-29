@@ -25,10 +25,11 @@ extension CoreDataRepository {
     public func create<Model: UnmanagedModel>(_ item: Model, transactionAuthor: String? = nil) async -> Result<Model, CoreDataRepositoryError> {
         await context.performInScratchPad(schedule: .enqueued) { scratchPad in
             scratchPad.transactionAuthor = transactionAuthor
-            let object = Model.RepoManaged(context: scratchPad)
-            object.create(from: item)
+            let object = NSManagedObject(entity: Model.managedEntityDesc, insertInto: scratchPad)
+            try item.create(managed: object)
+            let newItem = try Model.tryMap(from: object)
             try scratchPad.save()
-            return object.asUnmanaged
+            return newItem
         }
     }
 
@@ -44,8 +45,7 @@ extension CoreDataRepository {
         await context.performInChild(schedule: .enqueued) { readContext in
             let id = try readContext.tryObjectId(from: url)
             let object = try readContext.notDeletedObject(for: id)
-            let repoManaged: Model.RepoManaged = try object.asRepoManaged()
-            return repoManaged.asUnmanaged
+            return try Model.tryMap(from: object)
         }
     }
 
@@ -68,10 +68,10 @@ extension CoreDataRepository {
         await context.performInScratchPad(schedule: .enqueued) { scratchPad in
             let id = try scratchPad.tryObjectId(from: url)
             let object = try scratchPad.notDeletedObject(for: id)
-            let repoManaged: Model.RepoManaged = try object.asRepoManaged()
-            repoManaged.update(from: item)
+            try item.update(managed: object)
+            let updatedItem: Model = try Model.tryMap(from: object)
             try scratchPad.save()
-            return repoManaged.asUnmanaged
+            return updatedItem
         }
     }
 
@@ -104,7 +104,7 @@ extension CoreDataRepository {
     /// - Returns: AnyPublisher<Model, CoreDataRepositoryError>
     public func readSubscription<Model: UnmanagedModel>(_ url: URL) -> AnyPublisher<Model, CoreDataRepositoryError> {
         let readContext = context.childContext()
-        let readPublisher: AnyPublisher<Model.RepoManaged, CoreDataRepositoryError> = readRepoManaged(url, readContext: readContext)
+        let readPublisher: AnyPublisher<NSManagedObject, CoreDataRepositoryError> = readManaged(url, readContext: readContext)
         var subjectCancellable: AnyCancellable?
         return Publishers.Create<Model, CoreDataRepositoryError> { [weak self] subscriber in
             let subject = PassthroughSubject<Model, CoreDataRepositoryError>()
@@ -156,17 +156,14 @@ extension CoreDataRepository {
         return .success(objectId)
     }
 
-    private func readRepoManaged<T>(
+    private func readManaged(
         _ url: URL,
         readContext: NSManagedObjectContext
-    ) -> AnyPublisher<T, CoreDataRepositoryError>
-        where T: RepositoryManagedModel
-    {
+    ) -> AnyPublisher<NSManagedObject, CoreDataRepositoryError> {
         Future { promise in
             readContext.performAndWait {
-                let result: Result<T, CoreDataRepositoryError> = readContext.objectId(from: url)
+                let result: Result<NSManagedObject, CoreDataRepositoryError> = readContext.objectId(from: url)
                     .mapToNSManagedObject(context: readContext)
-                    .map(to: T.self)
                     .mapToRepoError()
                 promise(result)
             }

@@ -33,10 +33,12 @@ final class ReadSubscription<Model: UnmanagedModel> {
 extension ReadSubscription: SubscriptionProvider {
     func manualFetch() {
         context.perform { [weak self, context, objectId] in
-            guard let object = context.object(with: objectId) as? Model.RepoManaged else {
-                return
+            switch Model.map(from: context.object(with: objectId)) {
+            case let .success(unmanaged):
+                self?.subject.send(unmanaged)
+            case let .failure(error):
+                self?.subject.send(completion: .failure(error))
             }
-            self?.subject.send(object.asUnmanaged)
         }
     }
 
@@ -47,11 +49,15 @@ extension ReadSubscription: SubscriptionProvider {
 
     func start() {
         context.perform { [weak self, context, objectId] in
-            guard let object = context.object(with: objectId) as? Model.RepoManaged else {
-                return
-            }
+            let object = context.object(with: objectId)
             let startCancellable = object.objectWillChange.sink { [weak self] _ in
-                self?.subject.send(object.asUnmanaged)
+                switch Model.map(from: object) {
+                case let .success(unmanaged):
+                    self?.subject.send(unmanaged)
+                case let .failure(error):
+                    self?.subject.send(completion: .failure(error))
+                }
+                
             }
             self?.cancellables.insert(startCancellable)
         }

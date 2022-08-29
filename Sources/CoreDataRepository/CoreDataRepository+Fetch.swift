@@ -19,10 +19,10 @@ extension CoreDataRepository {
     /// - Returns
     ///     - Result<[Model], CoreDataRepositoryError>
     ///
-    public func fetch<Model: UnmanagedModel>(_ request: NSFetchRequest<Model.RepoManaged>) async -> Result<[Model], CoreDataRepositoryError>
+    public func fetch<Model: UnmanagedModel>(_ request: NSFetchRequest<NSManagedObject>) async -> Result<[Model], CoreDataRepositoryError>
     {
         await context.performInChild { fetchContext in
-            try fetchContext.fetch(request).map(\.asUnmanaged)
+            try fetchContext.fetch(request).map(Model.tryMap(from:))
         }
     }
 
@@ -32,7 +32,7 @@ extension CoreDataRepository {
     ///     - _request: NSFetchRequest<Model.RepoManaged>
     /// - Returns
     ///     - AnyPublisher<[Model], CoreDataRepositoryError>
-    public func fetchSubscription<Model: UnmanagedModel>(_ request: NSFetchRequest<Model.RepoManaged>)
+    public func fetchSubscription<Model: UnmanagedModel>(_ request: NSFetchRequest<NSManagedObject>)
         -> AnyPublisher<[Model], CoreDataRepositoryError>
     {
         let fetchContext = context.childContext()
@@ -55,7 +55,7 @@ extension CoreDataRepository {
                         id: id,
                         request: request,
                         context: fetchContext,
-                        success: { $0.map(\.asUnmanaged) },
+                        success: Model.mapMany(from: ),
                         subject: subject
                     )
                     subscription = subscriptionProvider
@@ -83,7 +83,7 @@ extension CoreDataRepository {
     }
 
     private func _fetch<Model: UnmanagedModel>(
-        _ request: NSFetchRequest<Model.RepoManaged>,
+        _ request: NSFetchRequest<NSManagedObject>,
         fetchContext: NSManagedObjectContext
     )
         -> AnyPublisher<[Model], CoreDataRepositoryError>
@@ -91,7 +91,7 @@ extension CoreDataRepository {
         Future { promise in
             fetchContext.perform {
                 do {
-                    let items = try fetchContext.fetch(request).map(\.asUnmanaged)
+                    let items = try Model.tryMapMany(from: try fetchContext.fetch(request))
                     promise(.success(items))
                 } catch {
                     promise(.failure(.coreData(error as NSError)))

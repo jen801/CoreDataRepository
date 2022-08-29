@@ -13,8 +13,8 @@ import XCTest
 
 final class FetchRepositoryTests: CoreDataXCTestCase {
 
-    let fetchRequest: NSFetchRequest<RepoMovie> = {
-        let request = NSFetchRequest<RepoMovie>(entityName: "RepoMovie")
+    let fetchRequest: NSFetchRequest<NSManagedObject> = {
+        let request = NSFetchRequest<NSManagedObject>(entityName: "RepoMovie")
         request.sortDescriptors = [NSSortDescriptor(keyPath: \RepoMovie.title, ascending: true)]
         return request
     }()
@@ -31,9 +31,9 @@ final class FetchRepositoryTests: CoreDataXCTestCase {
     override func setUpWithError() throws {
         try super.setUpWithError()
         expectedMovies = try repositoryContext().performAndWait {
-            _ = try self.movies.map { $0.asRepoManaged(in: try repositoryContext()) }
+            _ = try self.movies.map { $0.asRepoMovie(in: try repositoryContext()) }
             try self.repositoryContext().save()
-            return try self.repositoryContext().fetch(fetchRequest).map(\.asUnmanaged)
+            return try self.repositoryContext().fetch(fetchRequest).map(Movie.tryMap(from:))
         }
         
     }

@@ -67,7 +67,7 @@ final class FetchRepositoryTests: CoreDataXCTestCase {
                 XCTAssert(items == self.expectedMovies, "Result items should match expectations")
             })
             .store(in: &cancellables)
-        wait(for: [exp], timeout: 10)
+        wait(for: [exp], timeout: 30)
     }
 
     func testFetchSubscriptionSuccess() throws {
@@ -101,7 +101,7 @@ final class FetchRepositoryTests: CoreDataXCTestCase {
 
             })
             .store(in: &cancellables)
-        wait(for: [firstExp], timeout: 10)
+        wait(for: [firstExp], timeout: 30)
         try repositoryContext().performAndWait {
             do {
                 let objectId = try container().persistentStoreCoordinator
@@ -112,6 +112,6 @@ final class FetchRepositoryTests: CoreDataXCTestCase {
                 XCTFail("Failed to update repository: \(error.localizedDescription)")
             }
         }
-        wait(for: [secondExp], timeout: 10)
+        wait(for: [secondExp], timeout: 30)
     }
 }

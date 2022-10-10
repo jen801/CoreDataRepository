@@ -53,7 +53,7 @@ final class CRUDRepositoryTests: CoreDataXCTestCase {
                 }
             )
             .store(in: &cancellables)
-        wait(for: [exp], timeout: 10)
+        wait(for: [exp], timeout: 30)
         let all = (try viewContext().fetch(RepoMovie.fetchRequest())).map(\.asUnmanaged)
         XCTAssert(
             all.count == 1,
@@ -98,7 +98,7 @@ final class CRUDRepositoryTests: CoreDataXCTestCase {
                 }
             )
             .store(in: &cancellables)
-        wait(for: [exp], timeout: 10)
+        wait(for: [exp], timeout: 30)
     }
 
     func testReadFailure() throws {
@@ -134,7 +134,7 @@ final class CRUDRepositoryTests: CoreDataXCTestCase {
                 }
             )
             .store(in: &cancellables)
-        wait(for: [exp], timeout: 10)
+        wait(for: [exp], timeout: 30)
     }
 
     func testUpdateSuccess() throws {
@@ -171,7 +171,7 @@ final class CRUDRepositoryTests: CoreDataXCTestCase {
                 }
             )
             .store(in: &cancellables)
-        wait(for: [exp], timeout: 10)
+        wait(for: [exp], timeout: 30)
 
         let objectId = try XCTUnwrap(
             viewContext().persistentStoreCoordinator?
@@ -220,7 +220,7 @@ final class CRUDRepositoryTests: CoreDataXCTestCase {
                 }
             )
             .store(in: &cancellables)
-        wait(for: [exp], timeout: 10)
+        wait(for: [exp], timeout: 30)
     }
 
     func testDeleteSuccess() throws {
@@ -253,7 +253,7 @@ final class CRUDRepositoryTests: CoreDataXCTestCase {
                 }
             )
             .store(in: &cancellables)
-        wait(for: [exp], timeout: 10)
+        wait(for: [exp], timeout: 30)
 
         let afterDeleteCount = try viewContext().count(for: fetchRequest)
         XCTAssert(afterDeleteCount == 0, "CoreData should have no objects after delete but found \(afterDeleteCount)")
@@ -292,7 +292,7 @@ final class CRUDRepositoryTests: CoreDataXCTestCase {
                 }
             )
             .store(in: &cancellables)
-        wait(for: [exp], timeout: 10)
+        wait(for: [exp], timeout: 30)
     }
 
     func testReadSubscriptionSuccess() throws {
@@ -338,7 +338,7 @@ final class CRUDRepositoryTests: CoreDataXCTestCase {
 
             })
             .store(in: &cancellables)
-        wait(for: [firstExp], timeout: 10)
+        wait(for: [firstExp], timeout: 30)
         try repository().update(try XCTUnwrap(movie.url), with: editedMovie).sink(
             receiveCompletion: { completion in
                 if case .failure = completion {
@@ -350,7 +350,7 @@ final class CRUDRepositoryTests: CoreDataXCTestCase {
             }
         )
         .store(in: &cancellables)
-        wait(for: [secondExp], timeout: 10)
+        wait(for: [secondExp], timeout: 30)
         cancellables.forEach { $0.cancel() }
     }
 }

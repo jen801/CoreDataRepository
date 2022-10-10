@@ -86,7 +86,7 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
                 }
             )
             .store(in: &cancellables)
-        wait(for: [exp], timeout: 10)
+        wait(for: [exp], timeout: 30)
 
         let data = try viewContext().fetch(fetchRequest)
         XCTAssert(
@@ -121,7 +121,7 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
                 receiveValue: { _ in }
             )
             .store(in: &cancellables)
-        wait(for: [exp], timeout: 10)
+        wait(for: [exp], timeout: 30)
 
         let data = try viewContext().fetch(fetchRequest)
         assert(data.map { $0.title ?? "" }.sorted() == [], "There should be no inserted values.")
@@ -153,7 +153,7 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
                 }
             )
             .store(in: &cancellables)
-        wait(for: [exp], timeout: 10)
+        wait(for: [exp], timeout: 30)
 
         let data = try viewContext().fetch(fetchRequest)
         XCTAssert(
@@ -195,7 +195,7 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
                 }
             )
             .store(in: &cancellables)
-        wait(for: [exp], timeout: 10)
+        wait(for: [exp], timeout: 30)
 
         XCTAssert(Set(resultingMovies) == Set(repoMovies.map(\.asUnmanaged)), "")
     }
@@ -232,7 +232,7 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
                 }
             )
             .store(in: &cancellables)
-        wait(for: [exp], timeout: 10)
+        wait(for: [exp], timeout: 30)
 
         let data = try viewContext().fetch(fetchRequest)
         XCTAssert(
@@ -275,7 +275,7 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
                 }
             )
             .store(in: &cancellables)
-        wait(for: [exp], timeout: 10)
+        wait(for: [exp], timeout: 30)
 
         XCTAssert(Set(editedMovies) == Set(resultingMovies), "")
     }
@@ -313,7 +313,7 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
                 }
             )
             .store(in: &cancellables)
-        wait(for: [exp], timeout: 10)
+        wait(for: [exp], timeout: 30)
         try viewContext().reset()
 
         let data = try viewContext().fetch(fetchRequest)
@@ -352,7 +352,7 @@ final class BatchRepositoryTests: CoreDataXCTestCase {
                 }
             )
             .store(in: &cancellables)
-        wait(for: [exp], timeout: 10)
+        wait(for: [exp], timeout: 30)
 
         let data = try viewContext().fetch(fetchRequest)
         XCTAssert(data.map { $0.title ?? "" }.sorted() == [], "There should be no remaining values.")

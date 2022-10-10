@@ -65,7 +65,7 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
                 exp.fulfill()
             })
             .store(in: &cancellables)
-        wait(for: [exp], timeout: 5)
+        wait(for: [exp], timeout: 10)
         let firstValue = try XCTUnwrap(values.first?.values.first)
         XCTAssert(firstValue == 5, "Result value (count) should equal number of movies.")
     }
@@ -92,7 +92,7 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
                 exp.fulfill()
             })
             .store(in: &cancellables)
-        wait(for: [exp], timeout: 5)
+        wait(for: [exp], timeout: 10)
         let firstValue = try XCTUnwrap(values.first?.values.first)
         XCTAssert(
             firstValue == 150,
@@ -122,7 +122,7 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
                 exp.fulfill()
             })
             .store(in: &cancellables)
-        wait(for: [exp], timeout: 5)
+        wait(for: [exp], timeout: 10)
         let firstValue = try XCTUnwrap(values.first?.values.first)
         XCTAssert(
             firstValue == 30,
@@ -152,7 +152,7 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
                 exp.fulfill()
             })
             .store(in: &cancellables)
-        wait(for: [exp], timeout: 5)
+        wait(for: [exp], timeout: 10)
         let firstValue = try XCTUnwrap(values.first?.values.first)
         XCTAssert(
             firstValue == 10,
@@ -182,7 +182,7 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
                 exp.fulfill()
             })
             .store(in: &cancellables)
-        wait(for: [exp], timeout: 5)
+        wait(for: [exp], timeout: 10)
         let firstValue = try XCTUnwrap(values.first?.values.first)
         XCTAssert(
             firstValue == 50,
